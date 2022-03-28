@@ -7,6 +7,19 @@ from mybible import Module
 app = FastAPI()
 module = Module("RST+.SQLite3")
 
+VERSE_NOT_FOUND = 101
+BOOK_NOT_FOUND = 201
+errors = {
+    VERSE_NOT_FOUND: {
+        "error_code": VERSE_NOT_FOUND,
+        "error_msg": "Verse not found"
+    },
+    BOOK_NOT_FOUND: {
+        "error_code": BOOK_NOT_FOUND,
+        "error_msg": "Book not found"
+    }
+}
+
 
 class Book(BaseModel):
     id: int
