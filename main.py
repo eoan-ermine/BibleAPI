@@ -9,28 +9,30 @@ app = FastAPI()
 module = Module("RST+.SQLite3")
 
 
-class VerseNotFoundException(Exception):
+class APIException(Exception):
+    pass
+
+
+class VerseNotFoundException(APIException):
     def __init__(self):
         self.code = 101
         self.msg = "Verse not found"
 
 
-@app.exception_handler(VerseNotFoundException)
-def verse_not_found_exception_handler(_: Request, exc: VerseNotFoundException):
-    return JSONResponse(
-        status_code = 400,
-        content = {"error_code": exc.code, "error_msg": exc.msg}
-    )
+class ChapterNotFoundException(APIException):
+    def __init__(self):
+        self.code = 301
+        self.msg = "Chapter not found"
 
 
-class BookNotFoundException(Exception):
+class BookNotFoundException(APIException):
     def __init__(self):
         self.code = 201
         self.msg = "Book not found"
 
 
-@app.exception_handler(BookNotFoundException)
-def book_not_found_exception_handler(_: Request, exc: BookNotFoundException):
+@app.exception_handler(APIException)
+def api_exception_handler(_: Request, exc: APIException):
     return JSONResponse(
         status_code = 400,
         content = {"error_code": exc.code, "error_msg": exc.msg}
@@ -133,5 +135,43 @@ def book(req: BookIn = Depends()):
                 id = id, long_name = book.long_name(), short_name = book.short_name(),
                 chapters = len(verses.get(id))
             )
+    else:
+        raise BookNotFoundException()
+
+
+class ChapterIn:
+    def __init__(self, book_id: int = Query(...), chapter: int = Query(...)):
+        self.book_id = book_id
+        self.chapter = chapter
+
+
+class ChapterOut(BaseModel):
+    book_id: int
+    chapter: int
+    verses: int
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "book_id": 10,
+                "chapter": 1,
+                "verses": 31
+            }
+        }
+
+
+@app.get("/chapter", response_model=ChapterOut)
+def chapter(req: ChapterIn = Depends()):
+    book_id, chapter = req.book_id, req.chapter
+    books = module.books()
+
+    if books.contains(book_id):
+        verses = module.verses()
+        if verses.contains(book_id, chapter):
+            return ChapterOut(
+                book_id = book_id, chapter = chapter, verses = len(verses.get(book_id, chapter))
+            )
+        else:
+            raise ChapterNotFoundException()
     else:
         raise BookNotFoundException()
