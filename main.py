@@ -28,7 +28,7 @@ class Books(BaseModel):
     items: List[Book]
 
 
-@app.get("/books")
+@app.get("/books", response_model=Books)
 def books():
     books = module.books()
     return {"response": Books(
