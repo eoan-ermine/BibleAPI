@@ -1,24 +1,40 @@
 from typing import List
-from fastapi import FastAPI, Depends, Query
+from fastapi import FastAPI, Depends, Query, Request
 from pydantic import BaseModel
+from fastapi.responses import JSONResponse
 import sqlite3
 from mybible import Module
 
 app = FastAPI()
 module = Module("RST+.SQLite3")
 
-VERSE_NOT_FOUND = 101
-BOOK_NOT_FOUND = 201
-errors = {
-    VERSE_NOT_FOUND: {
-        "error_code": VERSE_NOT_FOUND,
-        "error_msg": "Verse not found"
-    },
-    BOOK_NOT_FOUND: {
-        "error_code": BOOK_NOT_FOUND,
-        "error_msg": "Book not found"
-    }
-}
+
+class VerseNotFoundException(Exception):
+    def __init__(self):
+        self.code = 101
+        self.msg = "Verse not found"
+
+
+@app.exception_handler(VerseNotFoundException)
+def verse_not_found_exception_handler(_: Request, exc: VerseNotFoundException):
+    return JSONResponse(
+        status_code = 400,
+        content = {"error_code": exc.code, "error_msg": exc.msg}
+    )
+
+
+class BookNotFoundException(Exception):
+    def __init__(self):
+        self.code = 201
+        self.msg = "Book not found"
+
+
+@app.exception_handler(BookNotFoundException)
+def book_not_found_exception_handler(_: Request, exc: BookNotFoundException):
+    return JSONResponse(
+        status_code = 400,
+        content = {"error_code": exc.code, "error_msg": exc.msg}
+    )
 
 
 class Book(BaseModel):
@@ -66,28 +82,20 @@ class VerseOut(BaseModel):
     class Config:
         schema_extra = {
             "example": {
-                "response": {
-                    "text": "В начале сотворил Бог небо и землю."
-                }
+                "text": "В начале сотворил Бог небо и землю."
             }
         }
 
 
-@app.get("/verse")
+@app.get("/verse", response_model=VerseOut)
 def verse(req: VerseIn = Depends()):
     book, chapter, verse = req.book, req.chapter, req.verse
     verses = module.verses()
 
     if verses.contains(book, chapter, verse):
-        return {
-            "response": {
-                "text": verses.get(book, chapter, verse).text()
-            }
-        }
+        return VerseOut(text = verses.get(book, chapter, verse).text())
     else:
-        return {
-            "error": errors[VERSE_NOT_FOUND]
-        }
+        raise VerseNotFoundException()
 
 
 class BookIn:
@@ -104,17 +112,15 @@ class BookOut(BaseModel):
     class Config:
         schema_extra = {
             "example": {
-                "response": {
-                    "id": 10,
-                    "short_name": "Быт",
-                    "long_name": "Быт",
-                    "chapters": 50
-                }
+                "id": 10,
+                "short_name": "Быт",
+                "long_name": "Быт",
+                "chapters": 50
             }
         }
 
 
-@app.get("/book")
+@app.get("/book", response_model=BookOut)
 def book(req: BookIn = Depends()):
     id = req.id
     books = module.books()
@@ -123,13 +129,9 @@ def book(req: BookIn = Depends()):
         book = books.get(id)
         verses = module.verses()
 
-        return {
-            "response": BookOut(
+        return BookOut(
                 id = id, long_name = book.long_name(), short_name = book.short_name(),
                 chapters = len(verses.get(id))
             )
-        }
     else:
-        return {
-            "error": errors[BOOK_NOT_FOUND]
-        }
+        raise BookNotFoundException()
