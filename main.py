@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, Query
 from pydantic import BaseModel
 import sqlite3
 from mybible import Module
@@ -38,3 +38,40 @@ def books():
             for book in books
         ]
     )}
+
+
+class VerseIn:
+    def __init__(self, book: int = Query(...), chapter: int = Query(...), verse: int = Query(...)):
+        self.book = book
+        self.chapter = chapter
+        self.verse = verse
+
+
+class VerseOut(BaseModel):
+    text: str
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "response": {
+                    "text": "В начале сотворил Бог небо и землю."
+                }
+            }
+        }
+
+
+@app.get("/verse", response_model=VerseOut)
+def verse(req: VerseIn = Depends()):
+    book, chapter, verse = req.book, req.chapter, req.verse
+    verses = module.verses()
+
+    if verses.contains(book, chapter, verse):
+        return {
+            "response": {
+                "text": verses.get(book, chapter, verse).text()
+            }
+        }
+    else:
+        return {
+            "error": errors[VERSE_NOT_FOUND]
+        }
