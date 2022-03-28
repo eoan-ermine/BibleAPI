@@ -60,7 +60,7 @@ class VerseOut(BaseModel):
         }
 
 
-@app.get("/verse", response_model=VerseOut)
+@app.get("/verse")
 def verse(req: VerseIn = Depends()):
     book, chapter, verse = req.book, req.chapter, req.verse
     verses = module.verses()
@@ -74,4 +74,49 @@ def verse(req: VerseIn = Depends()):
     else:
         return {
             "error": errors[VERSE_NOT_FOUND]
+        }
+
+
+class BookIn:
+    def __init__(self, id: int = Query(...)):
+        self.id = id
+
+
+class BookOut(BaseModel):
+    id: int
+    short_name: str
+    long_name: str
+    chapters: int
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "response": {
+                    "id": 10,
+                    "short_name": "Быт",
+                    "long_name": "Быт",
+                    "chapters": 50
+                }
+            }
+        }
+
+
+@app.get("/book")
+def book(req: BookIn = Depends()):
+    id = req.id
+    books = module.books()
+
+    if books.contains(id):
+        book = books.get(id)
+        verses = module.verses()
+
+        return {
+            "response": BookOut(
+                id = id, long_name = book.long_name(), short_name = book.short_name(),
+                chapters = len(verses.get(id))
+            )
+        }
+    else:
+        return {
+            "error": errors[BOOK_NOT_FOUND]
         }
