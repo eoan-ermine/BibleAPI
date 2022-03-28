@@ -60,13 +60,13 @@ class Books(BaseModel):
 @app.get("/books", response_model=Books)
 def books():
     books = module.books()
-    return {"response": Books(
+    return Books(
         count = len(books),
         items = [
             Book(id = book.book_number(), short_name = book.short_name(), long_name = book.long_name())
             for book in books
         ]
-    )}
+    )
 
 
 class VerseIn:
