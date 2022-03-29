@@ -3,11 +3,39 @@ from fastapi import FastAPI, Depends, Query, Request
 from pydantic import BaseModel
 from fastapi.responses import JSONResponse, RedirectResponse
 import sqlite3
-from mybible import Module
+import mybible
+
+class Module:
+    def __init__(self, id, description, origin, language, region):
+        self.id = id
+        self.description = description
+        self.origin = origin
+        self.language = language
+        self.region = region
+
+
+class Registry:
+    def __init__(self, filename):
+        self.conn = sqlite3.connect(filename, check_same_thread = False)
+        self.cur = self.conn.cursor()
+
+    def fetch(self, id: Optional[str] = None, language: Optional[str] = None, region: Optional[str] = None):
+        clause = "AND ".join([f"{key} = {value}" for key, value in [("id", id), ("language", language), ("region", region)] if value != None])
+        parameters = [value for value in [id, language, region] if value != None]
+        self.cur.execute("SELECT filename, description, origin, language, region FROM modules WHERE {clause}", parameters)
+
+        return [
+            RegistryEntry(id, description, origin, language, region)
+            for id, description, origin, language in self.cur.fetchall()
+        ]
+
+    def __del__(self):
+        return self.conn.close()
+
 
 app = FastAPI()
-module = Module("RST+.SQLite3")
-
+module = mybible.Module("RST+.SQLite3")
+registry = Registry("Registry.SQLite3")
 
 class APIException(Exception):
     pass
