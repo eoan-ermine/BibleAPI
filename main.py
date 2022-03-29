@@ -1,17 +1,16 @@
-from typing import List
+from typing import List, Optional
 from fastapi import FastAPI, Depends, Query, Request
 from pydantic import BaseModel
 from fastapi.responses import JSONResponse, RedirectResponse
 import sqlite3
 import mybible
 
-class Module:
-    def __init__(self, id, description, origin, language, region):
-        self.id = id
-        self.description = description
-        self.origin = origin
-        self.language = language
-        self.region = region
+class Module(BaseModel):
+    id: str
+    description: str
+    origin: Optional[str]
+    language: str
+    region: str
 
 
 class Registry:
@@ -25,7 +24,7 @@ class Registry:
         self.cur.execute("SELECT filename, description, origin, language, region FROM modules WHERE {clause}", parameters)
 
         return [
-            RegistryEntry(id, description, origin, language, region)
+            RegistryEntry(id = id, description = description, origin = origin, language = language, region = region)
             for id, description, origin, language in self.cur.fetchall()
         ]
 
@@ -207,3 +206,33 @@ def chapter(req: ChapterIn = Depends()):
             raise ChapterNotFoundException()
     else:
         raise BookNotFoundException()
+
+
+class SearchModuleIn:
+    def __init__(self, id: Optional[str] = None, language: Optional[str] = None, region: Optional[str] = None):
+        self.id: Optional[str] = id
+        self.language: Optional[str] = language
+        self.region: Optional[str] = region
+
+
+class SearchModuleOut(BaseModel):
+    count: int
+    items: List[Module]
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "id": "RST+",
+                "description": "Russian Synodal Bible",
+                "origin": "The text is taken from the Open Bible project: https://openbibleproject.org. Public domain, no known copyrights on this text.",
+                "language": "ru",
+                "region": None
+            }
+        }
+
+
+@app.get("/modules.search", response_model = SearchModuleOut)
+def search_module(req: SearchModuleIn = Depends()):
+    id, language, region = req.id, req.language, req.region
+    result = registry.fetch(id, language, region)
+    return SearchModuleOut(count = len(result), items = result)
