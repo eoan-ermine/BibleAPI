@@ -9,8 +9,8 @@ info = module.info()
 conn = sqlite3.connect("Registry.SQLite3")
 cur = conn.cursor()
 
-query = "INSERT INTO modules(filename, description, detailed_info, language, region) VALUES (?, ?, ?, ?, ?)"
+query = "INSERT INTO modules(filename, description, origin, language, region) VALUES (?, ?, ?, ?, ?)"
 cur.execute(query,
-    (Path(filename).stem, info.get("description"), info.get("detailed_info"), info.get("language"), info.get("region"))
+    (Path(filename).stem, info.get("description"), info.get("origin"), info.get("language"), info.get("region"))
 )
 conn.commit()
