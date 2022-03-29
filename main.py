@@ -23,15 +23,17 @@ class Registry:
         clause = "AND ".join([f"{key} = ?" for key, value in [("id", id), ("language", language), ("region", region)] if value != None])
         parameters = [value for value in [id, language, region] if value != None]
         self.cur.execute(f"SELECT id, description, origin, language, region FROM modules {'WHERE ' + clause if clause else ''}", parameters)
+
         return [
             Module(id = id, description = description, origin = origin, language = language, region = region)
             for id, description, origin, language, region in self.cur.fetchall()
         ]
 
     def get(self, ids: List[str]):
-        clause = f"id IN [{','.join(['?' for _ in range(len(ids))])}]"
+        clause = f"id IN ({','.join(['?' for _ in range(len(ids))])})"
         query = f"SELECT id, description, origin, language, region FROM modules WHERE {clause}"
         self.cur.execute(query, ids)
+
         return [
             Module(id = id, description = description, origin = origin, language = language, region = region)
             for id, description, origin, language, region in self.cur.fetchall()
