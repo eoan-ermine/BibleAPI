@@ -1,7 +1,7 @@
 from typing import List
 from fastapi import FastAPI, Depends, Query, Request
 from pydantic import BaseModel
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 import sqlite3
 from mybible import Module
 
@@ -37,6 +37,10 @@ def api_exception_handler(_: Request, exc: APIException):
         status_code = 400,
         content = {"error_code": exc.code, "error_msg": exc.msg}
     )
+
+@app.get("/")
+def docs_redirect():
+    return RedirectResponse(url="/docs")
 
 
 class Book(BaseModel):
