@@ -5,12 +5,13 @@ from fastapi.responses import JSONResponse, RedirectResponse
 import sqlite3
 import mybible
 
+
 class Module(BaseModel):
     id: str
     description: str
     origin: Optional[str]
     language: str
-    region: str
+    region: Optional[str]
 
 
 class Registry:
@@ -19,13 +20,12 @@ class Registry:
         self.cur = self.conn.cursor()
 
     def fetch(self, id: Optional[str] = None, language: Optional[str] = None, region: Optional[str] = None):
-        clause = "AND ".join([f"{key} = {value}" for key, value in [("id", id), ("language", language), ("region", region)] if value != None])
+        clause = "AND ".join([f"{key} = ?" for key, value in [("id", id), ("language", language), ("region", region)] if value != None])
         parameters = [value for value in [id, language, region] if value != None]
-        self.cur.execute("SELECT filename, description, origin, language, region FROM modules WHERE {clause}", parameters)
-
+        self.cur.execute(f"SELECT id, description, origin, language, region FROM modules {'WHERE ' + clause if clause else ''}", parameters)
         return [
-            RegistryEntry(id = id, description = description, origin = origin, language = language, region = region)
-            for id, description, origin, language in self.cur.fetchall()
+            Module(id = id, description = description, origin = origin, language = language, region = region)
+            for id, description, origin, language, region in self.cur.fetchall()
         ]
 
     def __del__(self):
