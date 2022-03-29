@@ -245,3 +245,19 @@ def search_module(req: SearchModuleIn = Depends()):
     id, language, region = req.id, req.language, req.region
     result = registry.fetch(id, language, region)
     return SearchModuleOut(count = len(result), items = result)
+
+
+class GetModuleIn:
+    def __init__(self, ids: List[str] = Query(...)):
+        self.ids: List[str] = ids
+
+
+class GetModuleOut(BaseModel):
+    count: int
+    items: List[Module]
+
+
+@app.get("/modules.get", response_model = GetModuleOut)
+def get_module(req: GetModuleIn = Depends()):
+    result = registry.get(req.ids)
+    return GetModuleOut(count = len(result), items = result)
