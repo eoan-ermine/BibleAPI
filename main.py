@@ -28,6 +28,15 @@ class Registry:
             for id, description, origin, language, region in self.cur.fetchall()
         ]
 
+    def get(self, ids: List[str]):
+        clause = f"id IN [{','.join(['?' for _ in range(len(ids))])}]"
+        query = f"SELECT id, description, origin, language, region FROM modules WHERE {clause}"
+        self.cur.execute(query, ids)
+        return [
+            Module(id = id, description = description, origin = origin, language = language, region = region)
+            for id, description, origin, language, region in self.cur.fetchall()
+        ]
+
     def __del__(self):
         return self.conn.close()
 
