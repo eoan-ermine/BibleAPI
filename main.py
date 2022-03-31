@@ -170,7 +170,7 @@ class VerseOut(BaseModel):
         }
 
 
-@app.get("/verse", response_model=VerseOut)
+@app.get("/verses.get", response_model=VerseOut)
 def verse(req: VerseIn = Depends()):
     book, chapter, verse = req.book, req.chapter, req.verse
     verses = module.verses()
@@ -202,7 +202,7 @@ class ChapterOut(BaseModel):
         }
 
 
-@app.get("/chapter", response_model=ChapterOut)
+@app.get("/chapters.get", response_model=ChapterOut)
 def chapter(req: ChapterIn = Depends()):
     book_id, chapter = req.book_id, req.chapter
     books = module.books()
