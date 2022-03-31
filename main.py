@@ -181,6 +181,98 @@ def verse(req: VerseIn = Depends()):
         raise VerseNotFoundException()
 
 
+class InvalidSearchQueryException(RuntimeError):
+    pass
+
+
+class VerseSearch:
+    def __init__(self, query: str = Query(...)):
+        self.query = query
+
+    def parse(self):
+        self.query = self.query.split()
+        if len(self.query) != 2:
+            raise InvalidSearchQueryException()
+        self.book, address = self.query
+
+        direction = address.split(":")
+        if len(direction) != 2:
+            raise InvalidSearchQueryException()
+        chapter, verses = direction
+
+        if not chapter.isnumeric():
+            raise InvalidSearchQueryException()
+        self.chapter = int(chapter)
+
+        verses = verses.split("-")
+        if not all([verse.isnumeric() for verse in verses]):
+            raise InvalidSearchQueryException()
+        self.verses = [int(e) for e in verses]
+
+    def get_book(self) -> Optional[mybible.Book]:
+        for book in module.books():
+            if (book.short_name() == self.book) or (book.long_name() == self.book):
+                return book
+
+    def get_chapter(self) -> int:
+        return self.chapter
+
+    def get_verses(self) -> int:
+        return self.verses
+
+
+class VerseSearchIn:
+    def __init__(self, query: str = Query(...)):
+        self.searcher = VerseSearch(query)
+
+
+class VerseSearchOut(BaseModel):
+    count: int
+    items: List[str]
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "count": 5,
+                "items": [
+                    "В начале сотворил Бог небо и землю.",
+                    "Земля же была безвидна и пуста, и тьма над бездною, и Дух Божий носился над водою.",
+                    "И сказал Бог: да будет свет. И стал свет.",
+                    "И увидел Бог свет, что он хорош, и отделил Бог свет от тьмы.",
+                    "И назвал Бог свет днем, а тьму ночью. И был вечер, и было утро: день один."
+                ]
+            }
+        }
+
+
+@app.get("/verses.search", response_model = VerseSearchOut)
+def verse_search(req: VerseSearchIn = Depends()):
+    searcher = req.searcher
+    try:
+        searcher.parse()
+    except InvalidSearchQueryException:
+        return VerseSearchOut(count = 0, items = [])
+
+    verses = module.verses()
+
+    book = searcher.get_book()
+    if not book:
+        return VerseSearchOut(count = 0, items = [])
+
+    chapter = searcher.get_chapter()
+    if not verses.contains(book.book_number(), chapter):
+        return VerseSearchOut(count = 0, items = [])
+
+    target_verses = searcher.get_verses()
+    start, end = target_verses[0], target_verses[-1] + 1
+    result = [e.text() for e in verses.get(book.book_number(), chapter, mybible.Range(start, end))]
+
+    return VerseSearchOut(
+        count = len(result),
+        items = result
+    )
+
+
 class ChapterIn:
     def __init__(self, book_id: int = Query(...), chapter: int = Query(...)):
         self.book_id = book_id
